@@ -69,7 +69,7 @@ static uint8 get_shift(uint8 bit, uint8 length)
  */
 static uint64 read_off(bitarr_address_t address)
 {
-#if defined(__arm) || defined(__arm__)
+#if defined(__arm) || defined(__arm__) || defined(__mips) || defined(__mips__)
     uint64 value64;
     const uint8 *base_off = (const uint8 *)(address.base) + (address.offset >> 3);
     memcpy(&value64, base_off, sizeof(value64));
@@ -86,7 +86,7 @@ uint64 bitarr_read_int57(bitarr_address_t address, uint8 length, uint64 mask)
 
 void bitarr_write_int57(bitarr_address_t address, uint8 length, uint64 value) 
 {
-#if defined(__arm) || defined(__arm__)
+#if defined(__arm) || defined(__arm__) || defined(__mips) || defined(__mips__)
     uint64 value64;
     uint8 *base_off = (uint8 *)(address.base) + (address.offset >> 3);
     memcpy(&value64, base_off, sizeof(value64));
@@ -99,7 +99,7 @@ void bitarr_write_int57(bitarr_address_t address, uint8 length, uint64 value)
 
 uint32 bitarr_read_int25(bitarr_address_t address, uint8 length, uint32 mask) 
 {
-#if defined(__arm) || defined(__arm__)
+#if defined(__arm) || defined(__arm__) || defined(__mips) || defined(__mips__)
     uint32 value32;
     const uint8 *base_off = (const uint8*)(address.base) + (address.offset >> 3);
     memcpy(&value32, base_off, sizeof(value32));
@@ -111,7 +111,7 @@ uint32 bitarr_read_int25(bitarr_address_t address, uint8 length, uint32 mask)
 
 void bitarr_write_int25(bitarr_address_t address, uint8 length, uint32 value)
 {
-#if defined(__arm) || defined(__arm__)
+#if defined(__arm) || defined(__arm__) || defined(__mips) || defined(__mips__)
     uint32 value32;
     uint8 *base_off = (uint8 *)(address.base) + (address.offset >> 3);
     memcpy(&value32, base_off, sizeof(value32));
