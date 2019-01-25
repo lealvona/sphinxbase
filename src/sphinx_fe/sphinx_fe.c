@@ -113,6 +113,7 @@ detect_riff(sphinx_wave2feat_t *wtf)
 {
     FILE *fh;
     MSWAV_hdr hdr;
+    double samprate;
 
     if ((fh = fopen(wtf->infile, "rb")) == NULL) {
         E_ERROR_SYSTEM("Failed to open %s", wtf->infile);
@@ -128,10 +129,18 @@ detect_riff(sphinx_wave2feat_t *wtf)
         fclose(fh);
         return FALSE;
     }
-
-    /* Get relevant information. */
-    cmd_ln_set_int32_r(wtf->config, "-nchans", hdr.numchannels);
-    cmd_ln_set_float32_r(wtf->config, "-samprate", hdr.SamplingFreq);
+    if (cmd_ln_int32_r(wtf->config, "-nchans") != hdr.numchannels) {
+	E_ERROR("Number of channels %d does not match configured value in file '%s'\n", hdr.numchannels, wtf->infile);
+	fclose(fh);
+	return -1;
+    }
+    samprate = cmd_ln_float32_r(wtf->config, "-samprate");
+    if (samprate != hdr.SamplingFreq) {
+	E_ERROR("Sample rate %d does not match configured value %.1f in file '%s'\n", 
+	        hdr.SamplingFreq, samprate, wtf->infile);
+	fclose(fh);
+	return -1;
+    }
     wtf->infh = fh;
 
     return TRUE;
@@ -175,14 +184,31 @@ open_nist_file(sphinx_wave2feat_t *wtf, char const *infile, FILE **out_fh, int d
         words = (char **)ckd_calloc(nword, sizeof(*words));
         str2words(li->buf, words, nword);
         if (0 == strcmp(words[0], "sample_rate")) {
-            cmd_ln_set_float32_r(wtf->config, "-samprate", atof_c(words[2]));
+            float samprate = atof_c(words[2]);
+            if (cmd_ln_float32_r(wtf->config, "-samprate") != samprate) {
+	        E_ERROR("Sample rate %.1f does not match configured value in file '%s'\n", samprate, infile);
+	        lineiter_free(li);
+	        fclose(fh);
+	        return -1;
+             }
         }
         if (0 == strcmp(words[0], "channel_count")) {
-            cmd_ln_set_int32_r(wtf->config, "-nchans", atoi(words[2]));
+            int nchans = atoi(words[2]);
+            if (cmd_ln_int32_r(wtf->config, "-nchans") != nchans) {
+	        E_ERROR("Number of channels %d does not match configured value in file '%s'\n", nchans, infile);
+	        lineiter_free(li);
+    	        fclose(fh);
+	        return -1;
+            }
         }
         if (detect_endian && 0 == strcmp(words[0], "sample_byte_format")) {
-            cmd_ln_set_str_r(wtf->config, "-input_endian",
-                             (0 == strcmp(words[2], "10")) ? "big" : "little");
+            const char *endian = (0 == strcmp(words[2], "10")) ? "big" : "little";
+            if (0 != strcmp(cmd_ln_str_r(wtf->config, "-input_endian"), endian)) {
+	        E_ERROR("Input endian %s does not match configured value in file '%s'\n", endian, infile);
+	        lineiter_free(li);
+    	        fclose(fh);
+	        return -1;
+            }
         }
         ckd_free(words);
     }
@@ -299,6 +325,7 @@ detect_sphinx_mfc(sphinx_wave2feat_t *wtf)
             SWAP_INT32(&len);
             E_ERROR("Mismatch in header/file lengths: 0x%08x vs 0x%08x\n",
                     len, flen);
+            fclose(fh);
             return -1;
         }
         /* Set the input endianness to the opposite of the machine endianness... */
@@ -757,7 +784,7 @@ int
 sphinx_wave2feat_convert_file(sphinx_wave2feat_t *wtf,
                               char const *infile, char const *outfile)
 {
-    int nchans, minfft, nfft, nfloat, veclen;
+    int nchans, nfloat, veclen;
     audio_type_t const *atype = NULL;
     int fshift, fsize;
 
@@ -772,19 +799,6 @@ sphinx_wave2feat_convert_file(sphinx_wave2feat_t *wtf,
     /* Determine whether to byteswap input. */
     wtf->byteswap = strcmp(cmd_ln_str_r(wtf->config, "-mach_endian"),
                            cmd_ln_str_r(wtf->config, "-input_endian"));
-
-    /* Make sure the FFT size is sufficiently large. */
-    minfft = (int)(cmd_ln_float32_r(wtf->config, "-samprate")
-                   * cmd_ln_float32_r(wtf->config, "-wlen") + 0.5);
-    for (nfft = 1; nfft < minfft; nfft <<= 1)
-        ;
-    if (nfft > cmd_ln_int32_r(wtf->config, "-nfft")) {
-        E_WARN("Value of -nfft = %d is too small, increasing to %d\n",
-               cmd_ln_int32_r(wtf->config, "-nfft"), nfft);
-        cmd_ln_set_int32_r(wtf->config, "-nfft", nfft);
-        fe_free(wtf->fe);
-        wtf->fe = fe_init_auto_r(wtf->config);
-    }
 
     /* Get the output frame size (if not already set). */
     if (wtf->veclen == 0)

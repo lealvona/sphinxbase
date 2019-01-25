@@ -115,15 +115,6 @@ fi])
 AM_CONDITIONAL(FIXED_POINT, test x$fixed_point = xtrue)
 
 dnl
-dnl Enable debugging
-dnl
-AC_ARG_ENABLE(debug,
-	AS_HELP_STRING([--enable-debug],
-			[Enable debugging output]),
-	AC_DEFINE(SPHINX_DEBUG, [],
-	          [Enable debugging output]))
-
-dnl
 dnl determine audio type or use none if none supported on this platform
 dnl
 case $host in
@@ -151,7 +142,7 @@ case $host in
 		ad_libs="-lwinmm"
 		;;
 	*-apple-*darwin*)
-		sdkparam=`xcodebuild -showsdks | awk '/^$/{p=0};p; /OS X SDKs:/{p=1}' | tail -1 | cut -f3`
+		sdkparam=`xcodebuild -showsdks | awk '/^$/{p=0};p; /macOS SDKs:/{p=1}; /OS X SDKs:/{p=1}' | tail -1 | cut -f3`
 		sdkpath=`xcodebuild -version $sdkparam Path`
 		ad_cppflags="-I$sdkpath/System/Library/Frameworks/OpenAL.framework/Versions/A/Headers/"
 		backup_CPPFLAGS="$CPPFLAGS"
